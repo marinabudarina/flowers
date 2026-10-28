@@ -12,4 +12,4 @@ The 3D models are stored outside Git history in a GitHub Release. For the first 
 
 Publishing that release starts the GitHub Pages build. The workflow joins the parts, checks and unpacks all models, builds the site, and deploys it to Pages.
 
-The website is configured for `https://marinabudarina.github.io/budarina-flower-shop/`.
+The website is configured for `https://marinabudarina.github.io/flowers/`.
