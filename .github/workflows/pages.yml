@@ -52,13 +52,13 @@ jobs:
       - name: Prepare the static flower assets
         env:
           FLOWER_MODELS_DIR: ${{ runner.temp }}/flower-models
-          BASE_PATH: /budarina-flower-shop/
+          BASE_PATH: /flowers/
         run: node scripts/prepare-github-pages.mjs
 
       - name: Build the website
         env:
           PORT: "4173"
-          BASE_PATH: /budarina-flower-shop/
+          BASE_PATH: /flowers/
         run: |
           pnpm --filter @workspace/collectible-cards run build
           mkdir -p artifacts/collectible-cards/dist/public/flowers
