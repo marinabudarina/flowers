@@ -1,0 +1,86 @@
+name: Deploy Budarina Flower Shop to GitHub Pages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install app dependencies
+        run: pnpm install --no-frozen-lockfile --filter @workspace/collectible-cards...
+
+      - name: Download the flower models
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/model-parts" "$RUNNER_TEMP/flower-models"
+          gh release download flower-models-v1 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'flower-models.zip.part-*' \
+            --dir "$RUNNER_TEMP/model-parts"
+          cat "$RUNNER_TEMP/model-parts/flower-models.zip.part-00.part" \
+              "$RUNNER_TEMP/model-parts/flower-models.zip.part-01.part" \
+            > "$RUNNER_TEMP/flower-models.zip"
+          unzip -q "$RUNNER_TEMP/flower-models.zip" -d "$RUNNER_TEMP/flower-models"
+
+      - name: Prepare the static flower assets
+        env:
+          FLOWER_MODELS_DIR: ${{ runner.temp }}/flower-models
+          BASE_PATH: /budarina-flower-shop/
+        run: node scripts/prepare-github-pages.mjs
+
+      - name: Build the website
+        env:
+          PORT: "4173"
+          BASE_PATH: /budarina-flower-shop/
+        run: |
+          pnpm --filter @workspace/collectible-cards run build
+          mkdir -p artifacts/collectible-cards/dist/public/flowers
+          cp artifacts/collectible-cards/dist/public/index.html \
+            artifacts/collectible-cards/dist/public/flowers/index.html
+          touch artifacts/collectible-cards/dist/public/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload the Pages site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: artifacts/collectible-cards/dist/public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Publish the Pages site
+        id: deployment
+        uses: actions/deploy-pages@v4
